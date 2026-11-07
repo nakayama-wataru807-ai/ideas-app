@@ -67,13 +67,20 @@ async function decrypt(blob, pass) {
 
 function esc(s){return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 
+// 生成時刻（UTC の ISO 文字列）を日本時間で「2026/11/07 20:15」の形にする
+function jst(iso) {
+  try {
+    return new Date(iso).toLocaleString('ja-JP', {timeZone:'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
+  } catch (e) { return iso.slice(0, 16).replace('T', ' '); }
+}
+
 function render() {
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.k === kind));
   const q = $('#q').value.trim().toLowerCase();
   const items = data[kind].filter(x => !q || (x.t + '\n' + x.b).toLowerCase().includes(q));
   $('#list').innerHTML = items.map(x =>
     `<article><h2>${esc(x.t)}</h2><div class="meta">${esc(x.d)}${x.f ? '　' + esc(x.f) : ''}</div><p class="b">${esc(x.b)}</p>${x.s ? `<p class="sup">補足　${esc(x.s)}</p>` : ''}</article>`
-  ).join('') + `<p class="note">${items.length}件　更新 ${data.generated.slice(0,16).replace('T',' ')} (UTC)</p>`;
+  ).join('') + `<p class="note">${items.length}件　更新 ${jst(data.generated)}</p>`;
 }
 
 async function open(blobText) {
