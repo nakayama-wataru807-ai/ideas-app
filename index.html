@@ -29,6 +29,7 @@ article{padding:18px 0;border-bottom:1px solid var(--line)}
 h2{margin:0;font:700 17px/1.5 "Zen Kaku Gothic Antique","Hiragino Sans",sans-serif}
 .meta{color:var(--sub);font-size:12px;margin:2px 0 8px}
 .b{white-space:pre-wrap;word-break:break-word;margin:0}
+.sup{margin:8px 0 0;color:var(--sub);font-size:12px;line-height:1.6}
 .note{color:var(--sub);font-size:12px;padding:16px 0}
 #lock{max-width:360px;margin:20vh auto 0;padding:0 16px}
 #lock input{width:100%;border:1px solid var(--line);background:var(--field);color:var(--ink);font:inherit;padding:10px;border-radius:6px;margin:8px 0}
@@ -71,7 +72,7 @@ function render() {
   const q = $('#q').value.trim().toLowerCase();
   const items = data[kind].filter(x => !q || (x.t + '\n' + x.b).toLowerCase().includes(q));
   $('#list').innerHTML = items.map(x =>
-    `<article><h2>${esc(x.t)}</h2><div class="meta">${esc(x.d)}　${esc(x.f)}</div><p class="b">${esc(x.b)}</p></article>`
+    `<article><h2>${esc(x.t)}</h2><div class="meta">${esc(x.d)}${x.f ? '　' + esc(x.f) : ''}</div><p class="b">${esc(x.b)}</p>${x.s ? `<p class="sup">補足　${esc(x.s)}</p>` : ''}</article>`
   ).join('') + `<p class="note">${items.length}件　更新 ${data.generated.slice(0,16).replace('T',' ')} (UTC)</p>`;
 }
 
