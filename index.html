@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>アイデア帳</title>
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f141a" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Zen+Kaku+Gothic+Antique:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--ink:#16202c;--sub:#5b6878;--line:#e3e8ee;--acc:#1f4fd1;--field:#f3f6f9}
+@media (prefers-color-scheme:dark){:root{--bg:#0f141a;--ink:#dfe6ee;--sub:#8a97a6;--line:#232c36;--acc:#7da2ff;--field:#18202a}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.75 "BIZ UDPGothic","Hiragino Sans","Yu Gothic",sans-serif}
+header{position:sticky;top:0;z-index:1;background:var(--bg);border-bottom:1px solid var(--line);padding:calc(8px + env(safe-area-inset-top)) 16px 8px}
+.row{display:flex;gap:6px;align-items:center;max-width:760px;margin:0 auto}
+.tab{flex:0 0 auto;border:0;background:none;color:var(--sub);font:700 15px "Zen Kaku Gothic Antique","Hiragino Sans",sans-serif;padding:6px 8px;border-bottom:2px solid transparent}
+.tab[aria-selected=true]{color:var(--ink);border-color:var(--acc)}
+#q{flex:1;min-width:0;border:0;background:var(--field);color:var(--ink);font:inherit;padding:6px 10px;border-radius:6px}
+main{max-width:760px;margin:0 auto;padding:0 16px 48px}
+article{padding:18px 0;border-bottom:1px solid var(--line)}
+h2{margin:0;font:700 17px/1.5 "Zen Kaku Gothic Antique","Hiragino Sans",sans-serif}
+.meta{color:var(--sub);font-size:12px;margin:2px 0 8px}
+.b{white-space:pre-wrap;word-break:break-word;margin:0}
+.note{color:var(--sub);font-size:12px;padding:16px 0}
+#lock{max-width:360px;margin:20vh auto 0;padding:0 16px}
+#lock input{width:100%;border:1px solid var(--line);background:var(--field);color:var(--ink);font:inherit;padding:10px;border-radius:6px;margin:8px 0}
+#lock button{width:100%;border:0;background:var(--acc);color:#fff;font:700 15px inherit;padding:10px;border-radius:6px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div id="lock" hidden>
+  <p>パスフレーズを入れてください（この端末に一度だけ）。</p>
+  <input id="pw" type="password" autocomplete="current-password">
+  <button id="go">開く</button>
+  <p id="err" class="note"></p>
+</div>
+<header id="hd" hidden>
+  <div class="row">
+    <button class="tab" data-k="ideas" aria-selected="true">アイデア</button>
+    <button class="tab" data-k="mind" aria-selected="false">マインドセット</button>
+    <input id="q" type="search" placeholder="検索">
+  </div>
+</header>
+<main id="list"></main>
+<script>
+const $ = s => document.querySelector(s);
+const LS = {get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}, del(k){try{localStorage.removeItem(k)}catch(e){}}};
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+let data = null, kind = LS.get('kind') || 'ideas', lastBlob = '';
+
+async function decrypt(blob, pass) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({name:'PBKDF2', salt:b64(blob.salt), iterations:blob.iter, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:b64(blob.iv)}, key, b64(blob.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+function esc(s){return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+
+function render() {
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.k === kind));
+  const q = $('#q').value.trim().toLowerCase();
+  const items = data[kind].filter(x => !q || (x.t + '\n' + x.b).toLowerCase().includes(q));
+  $('#list').innerHTML = items.map(x =>
+    `<article><h2>${esc(x.t)}</h2><div class="meta">${esc(x.d)}　${esc(x.f)}</div><p class="b">${esc(x.b)}</p></article>`
+  ).join('') + `<p class="note">${items.length}件　更新 ${data.generated.slice(0,16).replace('T',' ')} (UTC)</p>`;
+}
+
+async function open(blobText) {
+  const pass = LS.get('pass');
+  if (!pass) { $('#lock').hidden = false; return; }
+  try {
+    data = await decrypt(JSON.parse(blobText), pass);
+  } catch (e) {
+    LS.del('pass'); $('#err').textContent = 'パスフレーズが違うようです。'; $('#lock').hidden = false; return;
+  }
+  lastBlob = blobText;
+  $('#lock').hidden = true; $('#hd').hidden = false;
+  render();
+}
+
+async function load() {
+  const r = await fetch('data.enc');
+  return r.text();
+}
+
+$('#go').onclick = async () => { LS.set('pass', $('#pw').value); $('#err').textContent = ''; open(await load()); };
+$('#pw').onkeydown = e => { if (e.key === 'Enter') $('#go').click(); };
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => { kind = t.dataset.k; LS.set('kind', kind); window.scrollTo(0,0); render(); });
+$('#q').oninput = () => data && render();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+  navigator.serviceWorker.addEventListener('message', async e => {
+    if (e.data === 'data-updated') { const t = await load(); if (t !== lastBlob) open(t); }
+  });
+}
+load().then(open);
+</script>
+</body>
+</html>
