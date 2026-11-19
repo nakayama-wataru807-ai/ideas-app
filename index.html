@@ -80,9 +80,9 @@ function jst(iso) {
 function render() {
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.k === kind));
   const q = $('#q').value.trim().toLowerCase();
-  const items = (data[kind] || []).filter(x => !q || (x.t + '\n' + x.b).toLowerCase().includes(q));
+  const items = (data[kind] || []).filter(x => !q || (x.t + '\n' + x.b + '\n' + (x.f || '')).toLowerCase().includes(q));
   $('#list').innerHTML = items.map(x =>
-    `<article><h2>${esc(x.t)}</h2><div class="meta">${esc(x.d)}${x.f ? '　' + esc(x.f) : ''}</div><p class="b">${esc(x.b)}</p>${x.s ? `<p class="sup">補足　${esc(x.s)}</p>` : ''}</article>`
+    `<article>${x.t ? `<h2>${esc(x.t)}</h2>` : ''}<div class="meta">${esc(x.d)}${x.f ? '　' + esc(x.f) : ''}</div>${x.b ? `<p class="b">${esc(x.b)}</p>` : ''}${x.s ? `<p class="sup">補足　${esc(x.s)}</p>` : ''}</article>`
   ).join('') + `<p class="note">${items.length}件　更新 ${jst(data.generated)}</p>`;
 }
 
